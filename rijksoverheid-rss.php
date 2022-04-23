@@ -33,7 +33,7 @@ header('Content-Type: application/rss+xml; charset=utf-8');
 	<sy:updateFrequency>1</sy:updateFrequency>
 	<generator>custom</generator>
 	<description>custom</description>
-	<link>rijksoverheid-zoek-rss.php?<?php print $query; ?></link>
+	<link>rijksoverheid-rss.php?<?php print $query; ?></link>
 <?php
 
 libxml_use_internal_errors(true);
