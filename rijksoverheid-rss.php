@@ -7,14 +7,14 @@ if (trim($query)=="")
 ?>
        <meta name="viewport" content="width=device-width, initial-scale=1">
        <form action="rijksoverheid-rss.php">
-       <input name="q" placeholder="rotterdam OR amsterdam OR schiedam"><br>
+       <input name="q" placeholder="rotterdam OR amsterdam OR Schiedam"><br>
 	<input type="submit"></form>
 	<?php
 	die();
 }
 
-header('Content-Type: application/rss+xml; charset=utf-8');
-// header('Content-Type: text/plain; charset=utf-8');
+//header('Content-Type: application/rss+xml; charset=utf-8');
+header('Content-Type: text/plain; charset=utf-8');
 
  
  ?><rss version="2.0"
@@ -38,7 +38,7 @@ header('Content-Type: application/rss+xml; charset=utf-8');
 
 libxml_use_internal_errors(true);
 
-$body=file_get_contents("https://www.rijksoverheid.nl/zoeken?trefwoord=".urlencode($query)."&sorteren%2Dop=datum");
+$body=file_get_contents("https://www.rijksoverheid.nl/zoeken?trefwoord=".urlencode($query)."&sorteren-op=datum");
 
 $dom_body = new DOMDocument();
 
@@ -46,43 +46,44 @@ $dom_body->validateOnParse = true;
 
 @$dom_body->loadHTML($body);
 
-$classname = 'common results';
-$finder = new DomXPath($dom_body);
-//$nodes = $finder->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' $classname ')]");
+$ul=$dom_body->getElementsByTagName('ol')->item(0);
 
-$h3s = $finder->query("//div[@class='$classname']//h3");
-$links = $finder->query("//div[@class='$classname']//@href");
-$ps = $finder->query("//div[@class='$classname']//p");
-
+$loop=0;
 
 $pubDate_old=date("r"); // failsafe
 
-$a=0;
-while ($a<10)
-{
-	//titel
-	$title=trim($h3s->item($a)->textContent);
+$check=TRUE;
 
-	//link
-	$link="https://www.rijksoverheid.nl".trim($links->item($a)->textContent);
+while($loop <= 10 && $check)
+{ 
+ 	$item=$ul->getElementsByTagName('li')->item($loop);
 
-	//beschrijving
-	$description=clean_up(trim($ps->item($a)->textContent));
+//	print $item->nodeValue;
+
+	$title= $item->getElementsByTagName('h3')->item(0)->textContent;
+
+	$description= $item->getElementsByTagName('p')->item(0)->nodeValue;
 	
-	//datum
-	$datum_class=$finder->query("/html/body/div[1]/main/div/div[1]/div[5]/a[$a]/p[2]");
+	$link= $item->getElementsByTagName('a')->item(0)->getAttribute('href');
+	
+	$datum_class = $item->getElementsByTagName('p');
+	
+	$loop++;
+	
+	$check=$ul->getElementsByTagName('li')->item($loop+1);
 
-	unset($pubDate);
 
-	if($datum_class->item(0)!==null)
-	{
-		$pubDate= substr($datum_class->item(0)->textContent,strpos($datum_class->item(0)->textContent,"|")+2);
-	}
-	else
-	{
+// process
+
+//	if($datum_class->item(1)!==null)
+//	{
+//		$pubDate= substr($datum_class->item(1)->textContent, strpos($datum_class->item(1)->textContent,"|")+2, 10);
+//	}
+//	else
+//	{
 		preg_match("/\/\d{4}\/\d{2}\/\d{2}\/.*$/", $link, $datum );
 		if (isset($datum[0])) $pubDate= substr($datum[0],1,11);
-	}
+//	}
 
 	if (!isset($pubDate))
 		$pubDate=$pubDate_old;
@@ -91,13 +92,14 @@ while ($a<10)
 
 	print "\t<item>\n";
 	print "\t\t<title>".clean_up($title)."</title>\n";
-	print "\t\t<link>$link</link>\n";
-	print "\t\t<guid>$link</guid>\n";
-	print "\t\t<description>$description</description>\n";
+	print "\t\t<link>https://www.rijksoverheid.nl$link</link>\n";
+	print "\t\t<guid>https://www.rijksoverheid.nl$link</guid>\n";
+	print "\t\t<description>".clean_up($description)."</description>\n";
+//	print "\t\t<pubDate>".date("r",strtotime($pubDate))." - ". $datum_class->item(1)->textContent."</pubDate>\n";
 	print "\t\t<pubDate>".date("r",strtotime($pubDate))."</pubDate>\n";
 	print "\t</item>\n";
-		
-	$a++;
+
+
 }
 
 function clean_up($subject) 
@@ -105,10 +107,9 @@ function clean_up($subject)
 	$subject=str_replace("&","&#x26;",$subject); //was &amp;
 	$subject=str_replace(">","&gt;",$subject);
 	$subject=str_replace("<","&#x3C;",$subject); // was &lt;
-	$subject=str_replace(chr(8),"",$subject); // edge case
-	return $subject;
+	$subject=str_replace(chr(8),"",$subject); // edge case, added dec 8th 2015 (backspace)
+	return trim($subject);
 }
-
 
 ?>	</channel>
 </rss>
